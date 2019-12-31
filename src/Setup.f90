@@ -279,7 +279,7 @@ submodule (Focal) Focal_Setup
       c_options(i) = options_temp(i:i)
     end do
     c_options(len(options_temp)+1) = C_NULL_CHAR
- 
+
     errcode = clBuildProgram(prog%cl_program,0, &
           C_NULL_PTR,C_LOC(c_options),C_NULL_FUNPTR,C_NULL_PTR)
 
@@ -312,7 +312,7 @@ submodule (Focal) Focal_Setup
     else
       out = stdout
     end if
-  
+
     errcode = clGetProgramBuildInfo(prog%cl_program, device%cl_device_id, &
           CL_PROGRAM_BUILD_LOG, int(0,c_size_t), C_NULL_PTR, buffLen)
 
@@ -403,7 +403,7 @@ submodule (Focal) Focal_Setup
   end procedure fclGetProgramKernel
   ! ---------------------------------------------------------------------------
 
-  
+
   module procedure fclLaunchKernelAfterEvent_1 !(kernel,cmdQ,event)
     !! Specific interface for a single event dependency on a specific command queue
 
@@ -431,7 +431,7 @@ submodule (Focal) Focal_Setup
 
   end procedure fclLaunchKernelAfterEventList_1
   ! ---------------------------------------------------------------------------
-  
+
 
   module procedure fclLaunchKernelAfterEventList_2 !(kernel,eventList)
     !! Specific interface for a multiple event dependencies on the __default command queue__
@@ -442,7 +442,7 @@ submodule (Focal) Focal_Setup
   ! ---------------------------------------------------------------------------
 
 
-  module procedure fclLaunchKernel !(kernel,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10)
+  module procedure fclLaunchKernel !(kernel,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11)
 
     integer(c_int32_t) :: errcode
     type(fclCommandQ), pointer :: cmdQ
@@ -462,8 +462,8 @@ submodule (Focal) Focal_Setup
       localSizePtr = c_loc(kernel%local_work_size)
     end if
 
-    ! Set arguments and parse (get number of args and cmdq if specified) 
-    call fclProcessKernelArgs(kernel,cmdq,narg,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10)
+    ! Set arguments and parse (get number of args and cmdq if specified)
+    call fclProcessKernelArgs(kernel,cmdq,narg,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11)
 
     errcode = clEnqueueNDRangeKernel(cmdq%cl_command_queue, &
                 kernel%cl_kernel, kernel%work_dim, &
@@ -471,20 +471,20 @@ submodule (Focal) Focal_Setup
                 c_loc(kernel%global_work_size), localSizePtr, &
                 cmdq%nDependency, cmdq%dependencyListPtr, &
                 c_loc(cmdQ%lastKernelEvent%cl_event))
-    
+
     call fclDbgWait(cmdQ%lastKernelEvent)
     call fclPopDependencies(cmdq)
     call fclErrorHandler(errcode,'fclLaunchKernel','clEnqueueNDRangeKernel')
 
     fclLastKernelEvent = cmdQ%lastKernelEvent
-    
+
     call kernel%pushProfileEvent(cmdQ%lastKernelEvent)
 
   end procedure fclLaunchKernel
   ! ---------------------------------------------------------------------------
 
 
-  module procedure fclProcessKernelArgs !(kernel,cmdq,narg,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10)
+  module procedure fclProcessKernelArgs !(kernel,cmdq,narg,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11)
     !! Sets kernel arguments and parses argument list for optional cmdq and actual number of arguments
 
     integer :: i0
@@ -551,6 +551,10 @@ submodule (Focal) Focal_Setup
       call fclSetKernelArg(kernel,i0+9,a10)
       nArg = nArg + 1
     end if
+    if (present(a11)) then
+      call fclSetKernelArg(kernel,i0+10,a11)
+      nArg = nArg + 1
+    end if
 
     if (nArg > 0) then
       ! If any kernel arguments are specified, check that they are all present
@@ -561,13 +565,13 @@ submodule (Focal) Focal_Setup
   ! ---------------------------------------------------------------------------
 
 
-  module procedure fclSetKernelArgs !(kernel,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10)
+  module procedure fclSetKernelArgs !(kernel,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11)
     !! Set all kernel arguments at once without launching kernel.
 
     type(fclCommandQ), pointer :: cmdq
     integer :: nArg
 
-    call fclProcessKernelArgs(kernel,cmdq,narg,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10)
+    call fclProcessKernelArgs(kernel,cmdq,narg,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11)
 
   end procedure fclSetKernelArgs
   ! ---------------------------------------------------------------------------
