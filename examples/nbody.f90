@@ -10,22 +10,23 @@ program nbody
 !!  - Profiling kernels and buffer transfers
 !!
 use Focal
+use iso_c_binding, longint=>c_int64_t
 implicit none
 
 ! --------- Program configuration ---------
 integer, parameter :: N = 5000 !3E5                 ! No. of bodies
-integer, parameter :: blockSize = 256               ! Local work group size
+integer, parameter :: blockSize = 16               ! Local work group size
 real, parameter :: dt = 1                           ! Global time-step
 integer, parameter :: Niter = 1000                  ! Number of iterations to perform
-character(*), parameter :: cl_vendor = 'nvidia'     ! Vendor for which to create OpenCL context
+character(*), parameter :: cl_vendor = 'intel'     ! Vendor for which to create OpenCL context
 
 ! ---------Program variables  ---------
 integer :: i, nBlock
-integer :: kern1T, kern2T
+integer(longint) :: kern1T, kern2T
 real :: Tavg, perf
 character(:), allocatable :: kernelSrc              ! Kernel source string
 type(fclDevice), allocatable :: devices(:)          ! List of focal devices
-type(fclProgram) :: prog                            ! Focal program object 
+type(fclProgram) :: prog                            ! Focal program object
 type(fclKernel) :: kern1, kern2                     ! Focal kernel object
 type(fclEvent) :: e
 
@@ -59,9 +60,11 @@ write(*,*) ''
 call fclGetKernelResource(kernelSrc)
 prog = fclCompileProgram(kernelSrc)
 
+call fclDumpBuildLog(prog,devices(1))
+
 ! Get kernel objects and set local/global work sizes
 nBlock = (N+blockSize-1)/blockSize
-kern1 = fclGetProgramKernel(prog,'bodyForces',[nBlock*blockSize],[blockSize],&
+kern1 = fclGetProgramKernel(prog,'bodyForces2',[nBlock*blockSize],[blockSize],&
                               profileSize=Niter)
 kern2 = fclGetProgramKernel(prog,'integrateBodies',[nBlock*blockSize],[blockSize],&
                               profileSize=Niter)
@@ -94,7 +97,9 @@ call fclBarrier()
 e = fclLastBarrierEvent
 
 ! Set kernel arguments once
-call kern1%setArgs(N,dt,pxd,pyd,pzd,vxd,vyd,vzd)
+call kern1%setArgs(N,dt,pxd,pyd,pzd,&
+   fclLocalFloat(blockSize),fclLocalFloat(blockSize),fclLocalFloat(blockSize),&
+   vxd,vyd,vzd)
 call kern2%setArgs(N,dt,pxd,pyd,pzd,vxd,vyd,vzd)
 
 ! Main time-stepping loop
@@ -126,4 +131,3 @@ write(*,*) perf,' billion interactions per second'
 
 end program nbody
 ! -----------------------------------------------------------------------------
-
